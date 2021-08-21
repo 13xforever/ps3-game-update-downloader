@@ -20,7 +20,7 @@ try
 }
 catch [Microsoft.PowerShell.Commands.HttpResponseException]
 {
-    if ([int]$_.Exception.Response.StatusCode -eq 403)
+    if ([int]$_.Exception.Response.StatusCode -eq 404)
     {
         Write-Verbose "No update information for product code $ProductCode"
         exit 0
@@ -88,8 +88,16 @@ foreach ($p in $packageList)
     $activity = "Downloading update v$($p.version.TrimStart('0'))"
     Write-Progress -Id 0 -Activity $activity -PercentComplete ($downloaded * 100 / $totalSize)
     $url = [uri]$p.url
-    $pkgPath = Join-Path $outDir (Split-Path $url -Leaf)
-    Invoke-WebRequest -Uri $url -OutFile $pkgPath
+    $pkgName = Split-Path $url -Leaf
+    $pkgPath = Join-Path $outDir $pkgName
+    if ((Test-Path $pkgPath) -and ([int](Get-ItemPropertyValue -LiteralPath $pkgPath -Name Length) -eq [int]$p.size))
+    {
+        Write-Verbose "Skipping $pkgName"
+    }
+    else
+    {
+        Invoke-WebRequest -Uri $url -OutFile $pkgPath
+    }
     $downloaded += $p.size
 }
 $global:progressPreference = $oldProgressPreference
